@@ -4,18 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/go-resty/resty/v2"
+	"go.opentelemetry.io/otel/propagation"
 	"io"
 	"log"
 	"net/http"
-	"time"
-
-	"go.opentelemetry.io/otel/propagation"
 
 	"github.com/illenko/observability-common/tracing"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
-var client = http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
+var client http.Client
+var restyClient *resty.Client
 
 func main() {
 	ctx := context.Background()
@@ -30,6 +30,11 @@ func main() {
 		}
 	}()
 
+	client = http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
+
+	restyClient = resty.New()
+	restyClient.SetDebug(true)
+
 	mux := http.NewServeMux()
 	mux.Handle("POST /payments", otelhttp.NewHandler(http.HandlerFunc(paymentHandler), "payment", otelhttp.WithPropagators(propagation.TraceContext{})))
 	log.Fatal(http.ListenAndServe(":8080", mux))
@@ -40,33 +45,52 @@ func paymentHandler(w http.ResponseWriter, r *http.Request) {
 
 	paymentReq, err := readPaymentRequest(r)
 	if err != nil {
-		writeJSONResponse(w, "error", fmt.Sprintf("Invalid request: %v", err))
+		writeErrorResponse(w, "Invalid request", err)
 		return
 	}
 	log.Printf("Received payment request: %+v\n", paymentReq)
 
 	routingResp, err := callRoutingService(ctx, paymentReq.RouteID)
 	if err != nil {
-		writeJSONResponse(w, "error", fmt.Sprintf("Failed to call routing service: %v", err))
+		writeErrorResponse(w, "Failed to call routing service", err)
 		return
 	}
 	log.Printf("Routing service response: %+v\n", routingResp)
 
-	if err := callPaymentProviderXService(ctx); err != nil {
-		writeJSONResponse(w, "error", fmt.Sprintf("Failed to call payment provider service: %v", err))
+	paymentProviderReq := PaymentProviderRequest{
+		OrderID:  paymentReq.OrderID,
+		Amount:   paymentReq.Amount,
+		Currency: paymentReq.Currency,
+	}
+
+	paymentProviderResp, err := callPaymentProviderXService(ctx, routingResp.URL, paymentProviderReq)
+	if err != nil {
+		writeErrorResponse(w, "Failed to call payment provider service", err)
 		return
 	}
 
-	writeJSONResponse(w, "success", "Payment processed")
+	response := PaymentResponse{
+		OrderID:   paymentReq.OrderID,
+		PaymentID: paymentProviderResp.PaymentID,
+		Status:    paymentProviderResp.Status,
+	}
+
+	writeSuccessResponse(w, response)
 }
 
-func writeJSONResponse(w http.ResponseWriter, status string, message string) {
-	response := PaymentResponse{
-		Status:  status,
-		Message: message,
-	}
+func writeErrorResponse(w http.ResponseWriter, message string, err error) {
+	log.Printf("%s: %v", message, err)
+	response := map[string]string{"status": "error", "message": message}
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusInternalServerError)
 	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
+}
+
+func writeSuccessResponse(w http.ResponseWriter, res PaymentResponse) {
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(res); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 	}
 }
@@ -118,13 +142,34 @@ func callRoutingService(ctx context.Context, routeID string) (RoutingResponse, e
 	return routingResp, nil
 }
 
-func callPaymentProviderXService(ctx context.Context) error {
-	_, paymentProviderSpan := tracing.T.Start(ctx, "paymentProviderXServiceCall")
+func callPaymentProviderXService(ctx context.Context, url string, payRequest PaymentProviderRequest) (PaymentProviderResponse, error) {
+	paymentProviderCtx, paymentProviderSpan := tracing.T.Start(ctx, "paymentProviderXServiceCall")
 	defer paymentProviderSpan.End()
 
+	restyClient.OnBeforeRequest(func(c *resty.Client, req *resty.Request) error {
+		propagation.TraceContext{}.Inject(paymentProviderCtx, propagation.HeaderCarrier(req.Header))
+		return nil
+	})
+
 	log.Println("Payment provider X service call started")
-	time.Sleep(200 * time.Millisecond)
+	resp, err := restyClient.R().
+		SetContext(paymentProviderCtx).
+		SetHeader("Content-Type", "application/json").
+		SetBody(payRequest).
+		Post(url)
+	if err != nil {
+		return PaymentProviderResponse{}, fmt.Errorf("failed to call payment provider service: %w", err)
+	}
 	log.Println("Payment provider X service call completed")
 
-	return nil
+	if resp.StatusCode() != http.StatusOK {
+		return PaymentProviderResponse{}, fmt.Errorf("payment provider service returned an error: %s", resp.Status())
+	}
+
+	var paymentProviderResp PaymentProviderResponse
+	if err := json.Unmarshal(resp.Body(), &paymentProviderResp); err != nil {
+		return PaymentProviderResponse{}, fmt.Errorf("failed to decode payment provider response: %w", err)
+	}
+
+	return paymentProviderResp, nil
 }

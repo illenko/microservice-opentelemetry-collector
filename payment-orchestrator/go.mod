@@ -3,6 +3,7 @@ module github.com/illenko/payment-orchestrator
 go 1.22.3
 
 require (
+	github.com/go-resty/resty/v2 v2.14.0
 	github.com/illenko/observability-common v0.0.0-00010101000000-000000000000
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.54.0
 	go.opentelemetry.io/otel v1.29.0
