@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"go.opentelemetry.io/otel/propagation"
 	"log"
 	"net/http"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/illenko/observability-common/tracing"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 type PaymentRequest struct {
