@@ -17,7 +17,7 @@ import (
 func main() {
 	ctx := context.Background()
 
-	tp, err := tracing.InitProvider("localhost:4317", "payment-orchestrator", ctx)
+	tp, _, err := tracing.InitProvider("localhost:4317", "payment-orchestrator", ctx)
 	if err != nil {
 		log.Fatal(err)
 	}

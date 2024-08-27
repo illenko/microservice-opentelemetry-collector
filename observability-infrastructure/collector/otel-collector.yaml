@@ -14,8 +14,6 @@ exporters:
 
   prometheus:
     endpoint: "0.0.0.0:8889"
-    const_labels:
-      label1: value1
 
   otlp:
     endpoint: tempo:4317

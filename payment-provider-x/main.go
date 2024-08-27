@@ -26,7 +26,7 @@ type PaymentResponse struct {
 func main() {
 	ctx := context.Background()
 
-	tp, err := tracing.InitProvider("localhost:4317", "payment-provider-x", ctx)
+	tp, _, err := tracing.InitProvider("localhost:4317", "payment-provider-x", ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
