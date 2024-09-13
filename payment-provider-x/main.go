@@ -33,8 +33,6 @@ func main() {
 		return
 	}
 
-	observability.SetupLogging()
-
 	shutdown, err := observability.SetupOpenTelemetry(ctx)
 
 	if err != nil {

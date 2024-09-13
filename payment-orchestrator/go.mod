@@ -24,6 +24,7 @@ require (
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.59.1 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
+	github.com/remychantenay/slog-otel v1.3.2 // indirect
 	go.opentelemetry.io/contrib/bridges/prometheus v0.55.0 // indirect
 	go.opentelemetry.io/contrib/exporters/autoexport v0.55.0 // indirect
 	go.opentelemetry.io/contrib/propagators/autoprop v0.55.0 // indirect

@@ -3,18 +3,17 @@ package observability
 import (
 	"context"
 	"errors"
+	slogotel "github.com/remychantenay/slog-otel"
 	"log/slog"
 	"os"
-
-	"github.com/illenko/observability-common/logging"
-	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 
 	"go.opentelemetry.io/contrib/exporters/autoexport"
 	"go.opentelemetry.io/contrib/propagators/autoprop"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
 func SetupOpenTelemetry(ctx context.Context) (shutdown func(context.Context) error, err error) {
@@ -68,11 +67,9 @@ func SetupOpenTelemetry(ctx context.Context) (shutdown func(context.Context) err
 
 	otel.SetMeterProvider(mp)
 
-	return shutdown, nil
-}
+	slog.SetDefault(slog.New(slogotel.OtelHandler{
+		Next: slog.NewJSONHandler(os.Stdout, nil),
+	}))
 
-func SetupLogging() {
-	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{})
-	instrumentedHandler := logging.HandlerWithSpanContext(jsonHandler)
-	slog.SetDefault(slog.New(instrumentedHandler))
+	return shutdown, nil
 }

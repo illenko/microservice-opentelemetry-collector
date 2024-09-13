@@ -3,6 +3,7 @@ module github.com/illenko/observability-common
 go 1.22.3
 
 require (
+	github.com/remychantenay/slog-otel v1.3.2
 	go.opentelemetry.io/contrib/exporters/autoexport v0.55.0
 	go.opentelemetry.io/contrib/propagators/autoprop v0.55.0
 	go.opentelemetry.io/otel v1.30.0
