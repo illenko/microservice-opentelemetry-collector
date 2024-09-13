@@ -6,6 +6,7 @@ replace github.com/illenko/observability-common => ../observability-common
 
 require (
 	github.com/illenko/observability-common v0.0.0-00010101000000-000000000000
+	github.com/joho/godotenv v1.5.1
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.54.0
 )
 

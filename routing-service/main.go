@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
 
 	"github.com/illenko/observability-common"
+	"github.com/joho/godotenv"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -21,8 +21,10 @@ type RoutingResponse struct {
 func main() {
 	ctx := context.Background()
 
-	os.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
-	os.Setenv("OTEL_SERVICE_NAME", "routing-service")
+	if err := godotenv.Load(); err != nil {
+		slog.ErrorContext(ctx, "Error loading .env file", slog.Any("error", err))
+		return
+	}
 
 	observability.SetupLogging()
 
@@ -42,7 +44,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	handleHTTP(mux, "GET /routings/{id}", routingHandler)
-	log.Fatal(http.ListenAndServe(":8081", mux))
+	slog.ErrorContext(ctx, "server failed", slog.Any("error", http.ListenAndServe(":"+os.Getenv("PORT"), mux)))
 }
 
 func handleHTTP(mux *http.ServeMux, route string, handleFn http.HandlerFunc) {

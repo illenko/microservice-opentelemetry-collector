@@ -2,25 +2,25 @@ package main
 
 import (
 	"context"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
 
+	"github.com/go-resty/resty/v2"
 	"github.com/illenko/observability-common"
-
 	"github.com/illenko/payment-orchestrator/handler"
 	"github.com/illenko/payment-orchestrator/service"
-
-	"github.com/go-resty/resty/v2"
+	"github.com/joho/godotenv"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 func main() {
 	ctx := context.Background()
 
-	os.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
-	os.Setenv("OTEL_SERVICE_NAME", "payment-orchestrator")
+	if err := godotenv.Load(); err != nil {
+		slog.ErrorContext(ctx, "Error loading .env file", slog.Any("error", err))
+		return
+	}
 
 	observability.SetupLogging()
 
@@ -40,7 +40,6 @@ func main() {
 
 	client := http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
 	restyClient := resty.New()
-	restyClient.SetDebug(true)
 	restyClient.SetTransport(otelhttp.NewTransport(http.DefaultTransport))
 
 	paymentHandler := handler.NewPaymentHandler(service.NewPaymentService(client, restyClient))
@@ -48,7 +47,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	handleHTTP(mux, "POST /payments", paymentHandler.Payment)
-	log.Fatal(http.ListenAndServe(":8080", mux))
+	slog.ErrorContext(ctx, "server failed", slog.Any("error", http.ListenAndServe(":"+os.Getenv("PORT"), mux)))
 }
 
 func handleHTTP(mux *http.ServeMux, route string, handleFn http.HandlerFunc) {

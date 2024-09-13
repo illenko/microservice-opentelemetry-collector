@@ -7,11 +7,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/illenko/observability-common"
-	"go.opentelemetry.io/otel"
-
 	"github.com/gin-gonic/gin"
+	"github.com/illenko/observability-common"
+	"github.com/joho/godotenv"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"go.opentelemetry.io/otel"
 )
 
 type PaymentRequest struct {
@@ -28,8 +28,10 @@ type PaymentResponse struct {
 func main() {
 	ctx := context.Background()
 
-	os.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
-	os.Setenv("OTEL_SERVICE_NAME", "payment-provider-x")
+	if err := godotenv.Load(); err != nil {
+		slog.ErrorContext(ctx, "Error loading .env file", slog.Any("error", err))
+		return
+	}
 
 	observability.SetupLogging()
 
@@ -52,7 +54,7 @@ func main() {
 		otelgin.WithTracerProvider(otel.GetTracerProvider()),
 		otelgin.WithPropagators(otel.GetTextMapPropagator())))
 	router.POST("/pay", paymentHandler)
-	slog.ErrorContext(ctx, "server failed", slog.Any("error", router.Run(":8082")))
+	slog.ErrorContext(ctx, "server failed", slog.Any("error", router.Run(":"+os.Getenv("PORT"))))
 }
 
 func paymentHandler(c *gin.Context) {
