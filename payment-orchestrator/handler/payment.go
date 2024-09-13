@@ -1,10 +1,11 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/illenko/payment-orchestrator/model"
@@ -24,17 +25,17 @@ func (h *PaymentHandler) Payment(w http.ResponseWriter, r *http.Request) {
 
 	paymentReq, err := ReadPaymentRequest(r)
 	if err != nil {
-		WriteErrorResponse(w, "Invalid request", err)
+		WriteErrorResponse(ctx, w, "Invalid request", err)
 		return
 	}
-	log.Printf("Received payment request: %+v\n", paymentReq)
+	slog.InfoContext(ctx, "Payment request", slog.Any("request", paymentReq))
 
 	routingResp, err := h.service.CallRoutingService(ctx, paymentReq.RouteID)
 	if err != nil {
-		WriteErrorResponse(w, "Failed to call routing service", err)
+		WriteErrorResponse(ctx, w, "Failed to call routing service", err)
 		return
 	}
-	log.Printf("Routing service response: %+v\n", routingResp)
+	slog.InfoContext(ctx, "Routing service response", slog.Any("response", routingResp))
 
 	paymentProviderReq := model.PaymentProviderRequest{
 		OrderID:  paymentReq.OrderID,
@@ -44,7 +45,7 @@ func (h *PaymentHandler) Payment(w http.ResponseWriter, r *http.Request) {
 
 	paymentProviderResp, err := h.service.CallPaymentProviderXService(ctx, routingResp.URL, paymentProviderReq)
 	if err != nil {
-		WriteErrorResponse(w, "Failed to call payment provider service", err)
+		WriteErrorResponse(ctx, w, "Failed to call payment provider service", err)
 		return
 	}
 
@@ -54,11 +55,11 @@ func (h *PaymentHandler) Payment(w http.ResponseWriter, r *http.Request) {
 		Status:    paymentProviderResp.Status,
 	}
 
-	WriteSuccessResponse(w, response)
+	WriteSuccessResponse(ctx, w, response)
 }
 
-func WriteErrorResponse(w http.ResponseWriter, message string, err error) {
-	log.Printf("%s: %v", message, err)
+func WriteErrorResponse(ctx context.Context, w http.ResponseWriter, message string, err error) {
+	slog.ErrorContext(ctx, message, slog.Any("error", err))
 	response := map[string]string{"status": "error", "message": message}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusInternalServerError)
@@ -67,9 +68,10 @@ func WriteErrorResponse(w http.ResponseWriter, message string, err error) {
 	}
 }
 
-func WriteSuccessResponse(w http.ResponseWriter, res model.PaymentResponse) {
+func WriteSuccessResponse(ctx context.Context, w http.ResponseWriter, res model.PaymentResponse) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(res); err != nil {
+		slog.ErrorContext(ctx, "Failed to encode response", slog.Any("error", err))
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 	}
 }

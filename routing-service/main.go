@@ -3,40 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 	"log"
+	"log/slog"
 	"net/http"
-	"sync"
-	"time"
+	"os"
 
+	"github.com/illenko/observability-common"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"go.opentelemetry.io/otel/propagation"
-
-	"github.com/illenko/observability-common/tracing"
 )
-
-var (
-	requestCount   metric.Int64Counter
-	requestLatency metric.Float64Histogram
-	initOnce       sync.Once
-)
-
-type Config struct {
-	ServiceName string
-	Endpoint    string
-}
-
-func metricsMiddleware(next http.Handler, serviceName string) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		initOnce.Do(func() {
-			requestCount, _ = tracing.M.Int64Counter("http_request_count")
-			requestLatency, _ = tracing.M.Float64Histogram("http_request_latency", metric.WithExplicitBucketBoundaries(0.5, 0.9, 0.95, 0.99))
-		})
-
-		next.ServeHTTP(w, r)
-	})
-}
 
 type RoutingResponse struct {
 	ID              string `json:"id"`
@@ -47,51 +21,39 @@ type RoutingResponse struct {
 func main() {
 	ctx := context.Background()
 
-	tp, _, err := tracing.InitProvider("localhost:4317", "routing-service", ctx)
+	os.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
+	os.Setenv("OTEL_SERVICE_NAME", "routing-service")
+
+	observability.SetupLogging()
+
+	shutdown, err := observability.SetupOpenTelemetry(ctx)
+
 	if err != nil {
-		log.Fatal(err)
+		slog.ErrorContext(ctx, "error setting up OpenTelemetry", slog.Any("error", err))
 	}
 
-	requestCount, _ = tracing.M.Int64Counter("routing_service_request_count")
-	requestLatency, _ = tracing.M.Float64Histogram("routing_service_request_latency")
-
-	defer func() {
-		if err := tp.Shutdown(ctx); err != nil {
-			log.Fatal(err)
-		}
-	}()
+	if shutdown != nil {
+		defer func() {
+			if err := shutdown(ctx); err != nil {
+				slog.ErrorContext(ctx, "error during shutdown", slog.Any("error", err))
+			}
+		}()
+	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/routings/{id}", metricsMiddleware(otelhttp.NewHandler(http.HandlerFunc(routingHandler), "routing", otelhttp.WithPropagators(propagation.TraceContext{})), "routing-service"))
+	handleHTTP(mux, "GET /routings/{id}", routingHandler)
 	log.Fatal(http.ListenAndServe(":8081", mux))
+}
+
+func handleHTTP(mux *http.ServeMux, route string, handleFn http.HandlerFunc) {
+	instrumentedHandler := otelhttp.NewHandler(otelhttp.WithRouteTag(route, handleFn), route)
+	mux.Handle(route, instrumentedHandler)
 }
 
 func routingHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	id := r.PathValue("id")
-
-	ctx, routeSearchSpan := tracing.T.Start(ctx, "routeSearch")
-
-	log.Println("Route search started")
-	time.Sleep(150 * time.Millisecond)
-	log.Println("Route search completed")
-	routeSearchSpan.End()
-
-	startTime := time.Now()
-	log.Println("Route search started")
-	time.Sleep(150 * time.Millisecond)
-	log.Println("Route search completed")
-	routeSearchSpan.End()
-
-	requestCount.Add(ctx, 1, metric.WithAttributes(
-		attribute.String("service.name", "routing-service"),
-		attribute.String("http.path", r.URL.Path),
-	))
-	requestLatency.Record(ctx, time.Since(startTime).Seconds(), metric.WithAttributes(
-		attribute.String("service.name", "routing-service"),
-		attribute.String("http.path", r.URL.Path),
-	))
 
 	response := RoutingResponse{
 		ID:              id,
@@ -101,9 +63,10 @@ func routingHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
+		slog.ErrorContext(ctx, "Failed to encode response", slog.Any("error", err))
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
 
-	log.Printf("Routing request for ID: %s processed", id)
+	slog.InfoContext(ctx, "Routing request processed", slog.String("ID", id))
 }

@@ -2,14 +2,16 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/illenko/observability-common"
+	"go.opentelemetry.io/otel"
+
 	"github.com/gin-gonic/gin"
-	"github.com/illenko/observability-common/tracing"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
-	"go.opentelemetry.io/otel/propagation"
 )
 
 type PaymentRequest struct {
@@ -26,24 +28,34 @@ type PaymentResponse struct {
 func main() {
 	ctx := context.Background()
 
-	tp, _, err := tracing.InitProvider("localhost:4317", "payment-provider-x", ctx)
+	os.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
+	os.Setenv("OTEL_SERVICE_NAME", "payment-provider-x")
+
+	observability.SetupLogging()
+
+	shutdown, err := observability.SetupOpenTelemetry(ctx)
+
 	if err != nil {
-		log.Fatal(err)
+		slog.ErrorContext(ctx, "error setting up OpenTelemetry", slog.Any("error", err))
 	}
-	defer func() {
-		if err := tp.Shutdown(ctx); err != nil {
-			log.Fatal(err)
-		}
-	}()
+
+	if shutdown != nil {
+		defer func() {
+			if err := shutdown(ctx); err != nil {
+				slog.ErrorContext(ctx, "error during shutdown", slog.Any("error", err))
+			}
+		}()
+	}
 
 	router := gin.Default()
-	router.Use(otelgin.Middleware("payment-provider-x", otelgin.WithTracerProvider(tp), otelgin.WithPropagators(propagation.TraceContext{})))
+	router.Use(otelgin.Middleware("payment-provider-x",
+		otelgin.WithTracerProvider(otel.GetTracerProvider()),
+		otelgin.WithPropagators(otel.GetTextMapPropagator())))
 	router.POST("/pay", paymentHandler)
-	log.Fatal(router.Run(":8082"))
+	slog.ErrorContext(ctx, "server failed", slog.Any("error", router.Run(":8082")))
 }
 
 func paymentHandler(c *gin.Context) {
-	ctx := c.Request.Context()
 	var paymentReq PaymentRequest
 
 	if err := c.ShouldBindJSON(&paymentReq); err != nil {
@@ -51,12 +63,9 @@ func paymentHandler(c *gin.Context) {
 		return
 	}
 
-	ctx, paymentSpan := tracing.T.Start(ctx, "processPayment")
-	defer paymentSpan.End()
-
-	log.Println("Payment processing started")
+	slog.InfoContext(c.Request.Context(), "Payment processing started")
 	time.Sleep(200 * time.Millisecond) // Simulate processing delay
-	log.Println("Payment processing completed")
+	slog.InfoContext(c.Request.Context(), "Payment processing completed")
 
 	response := PaymentResponse{
 		PaymentID: "12345",
