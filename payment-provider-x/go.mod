@@ -5,11 +5,10 @@ go 1.22.3
 replace github.com/illenko/observability-common => ../observability-common
 
 require (
+	github.com/Cyprinus12138/otelgin v1.0.2
 	github.com/gin-gonic/gin v1.10.0
 	github.com/illenko/observability-common v0.0.0-00010101000000-000000000000
 	github.com/joho/godotenv v1.5.1
-	go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin v0.54.0
-	go.opentelemetry.io/otel v1.30.0
 )
 
 require (

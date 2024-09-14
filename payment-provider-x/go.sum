@@ -1,3 +1,5 @@
+github.com/Cyprinus12138/otelgin v1.0.2 h1:ey7hK/WOL1tED7mS8RNcoL1cu/eDPWC5GrUNMTaNwCY=
+github.com/Cyprinus12138/otelgin v1.0.2/go.mod h1:2awev+K126GKnxin/XulKzV+/6nlW++xMHhPPTY2zX0=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/bytedance/sonic v1.12.1 h1:jWl5Qz1fy7X1ioY74WqO0KjAMtAGQs4sYnjiEBiyX24=
@@ -107,8 +109,6 @@ go.opentelemetry.io/contrib/bridges/prometheus v0.55.0 h1:1oZYcP3wuazG3O1563m8cs
 go.opentelemetry.io/contrib/bridges/prometheus v0.55.0/go.mod h1:sU48aWFqiqBXo2RBtq7KarczkW8uK6RdIU54y4VzpZs=
 go.opentelemetry.io/contrib/exporters/autoexport v0.55.0 h1:8kNP8SX9id5TY2feLB+79aFxE0kqzh3KvjF1nAfGxVM=
 go.opentelemetry.io/contrib/exporters/autoexport v0.55.0/go.mod h1:WhcvzeuTOr58aYsJ7S4ubY1xMs0WXAPaqTQnxr8bRHk=
-go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin v0.54.0 h1:lVELs+uHYjuGUsRVMDnd+Ex807eJueosoKKeMTllEiI=
-go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin v0.54.0/go.mod h1:sOFfPdbXztDEfCwBxS8gz9Fre7W/PefVPktTWt9A0TQ=
 go.opentelemetry.io/contrib/propagators/autoprop v0.55.0 h1:zXDUScOBq4fMn35V71SXLuFeDyYmb7V/rdhWgCXyiQM=
 go.opentelemetry.io/contrib/propagators/autoprop v0.55.0/go.mod h1:eg5CsjChS5mb+5EY0eVht8YYkFMdKL5mVRvlJO/pH1o=
 go.opentelemetry.io/contrib/propagators/aws v1.30.0 h1:zgdTJFAOV7Hz8Qj2WyFn9dcKY5lGzzbzjZwVyb3hLpQ=

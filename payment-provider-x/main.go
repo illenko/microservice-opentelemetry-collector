@@ -7,11 +7,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/Cyprinus12138/otelgin"
 	"github.com/gin-gonic/gin"
 	"github.com/illenko/observability-common"
 	"github.com/joho/godotenv"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
-	"go.opentelemetry.io/otel"
 )
 
 type PaymentRequest struct {
@@ -48,9 +47,8 @@ func main() {
 	}
 
 	router := gin.Default()
-	router.Use(otelgin.Middleware("payment-provider-x",
-		otelgin.WithTracerProvider(otel.GetTracerProvider()),
-		otelgin.WithPropagators(otel.GetTextMapPropagator())))
+	router.Use(otelgin.Middleware("payment-provider-x"))
+
 	router.POST("/pay", paymentHandler)
 	slog.ErrorContext(ctx, "server failed", slog.Any("error", router.Run(":"+os.Getenv("PORT"))))
 }
