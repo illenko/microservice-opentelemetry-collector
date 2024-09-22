@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"log/slog"
+	"math/rand"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/Cyprinus12138/otelgin"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/illenko/observability-common"
 	"github.com/joho/godotenv"
 )
@@ -62,12 +64,17 @@ func paymentHandler(c *gin.Context) {
 	}
 
 	slog.InfoContext(c.Request.Context(), "Payment processing started")
-	time.Sleep(200 * time.Millisecond) // Simulate processing delay
+	randomDelay := time.Duration(200+rand.Intn(2800)) * time.Millisecond
+	time.Sleep(randomDelay)
 	slog.InfoContext(c.Request.Context(), "Payment processing completed")
 
+	statuses := []string{"success", "failed"}
+
+	randomStatus := statuses[rand.Intn(len(statuses))]
+
 	response := PaymentResponse{
-		PaymentID: "12345",
-		Status:    "success",
+		PaymentID: uuid.New().String(),
+		Status:    randomStatus,
 	}
 
 	c.JSON(http.StatusOK, response)

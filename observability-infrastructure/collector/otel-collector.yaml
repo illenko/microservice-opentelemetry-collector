@@ -1,16 +1,17 @@
 receivers:
   otlp:
     protocols:
-      http:
       grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
 
 processors:
-  # batch metrics before sending to reduce API usage
   batch:
 
 exporters:
-  logging:
-    loglevel: debug
+  debug:
+    verbosity: detailed
 
   prometheus:
     endpoint: "0.0.0.0:8889"
@@ -20,16 +21,9 @@ exporters:
     tls:
       insecure: true
 
-  loki:
-    endpoint: "http://loki:3100/loki/api/v1/push"
-
-# https://github.com/open-telemetry/opentelemetry-collector/blob/main/extension/README.md
 extensions:
-  # responsible for responding to health check calls on behalf of the collector.
   health_check:
-  # fetches the collector’s performance data
   pprof:
-  # serves as an http endpoint that provides live debugging data about instrumented components.
   zpages:
 
 service:
@@ -45,4 +39,4 @@ service:
       exporters: [ otlp ]
     logs:
       receivers: [ otlp ]
-      exporters: [ loki ]
+      exporters: [ debug ]

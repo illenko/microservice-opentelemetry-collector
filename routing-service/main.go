@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"math/rand"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/illenko/observability-common"
 	"github.com/joho/godotenv"
@@ -59,6 +61,14 @@ func routingHandler(w http.ResponseWriter, r *http.Request) {
 		ID:              id,
 		PaymentProvider: "pay-x",
 		URL:             "http://localhost:8082/pay",
+	}
+
+	rand.Seed(time.Now().UnixNano())
+
+	if rand.Intn(2) == 0 {
+		slog.ErrorContext(ctx, "Random error occurred")
+		http.Error(w, "Random error occurred", http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")

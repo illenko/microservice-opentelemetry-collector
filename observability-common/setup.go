@@ -3,10 +3,10 @@ package observability
 import (
 	"context"
 	"errors"
-	slogotel "github.com/remychantenay/slog-otel"
 	"log/slog"
 	"os"
 
+	slogotel "github.com/remychantenay/slog-otel"
 	"go.opentelemetry.io/contrib/exporters/autoexport"
 	"go.opentelemetry.io/contrib/propagators/autoprop"
 	"go.opentelemetry.io/otel"
